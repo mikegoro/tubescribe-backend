@@ -1,12 +1,12 @@
 import os
 import re
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 
 app = Flask(__name__)
 
 # -----------------------------
-# Extract YouTube ID
+# Extract YouTube Video ID
 # -----------------------------
 def extract_video_id(url):
     match = re.search(
@@ -17,7 +17,7 @@ def extract_video_id(url):
 
 
 # -----------------------------
-# Optional: serve frontend (can remove if using Vercel)
+# Health Check
 # -----------------------------
 @app.route('/')
 def home():
@@ -25,7 +25,7 @@ def home():
 
 
 # -----------------------------
-# API
+# Transcript API
 # -----------------------------
 @app.route('/api/transcript', methods=['GET'])
 def get_transcript():
@@ -40,14 +40,13 @@ def get_transcript():
         return jsonify({"success": False, "error": "Invalid YouTube URL"}), 400
 
     try:
-        # ✅ YOUR WORKING LOGIC (DO NOT CHANGE)
-        api = YouTubeTranscriptApi()
-        transcript = api.fetch(video_id)
+        # ✅ CORRECT METHOD (THIS IS THE KEY FIX)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
 
-        plain_text = " ".join([item.text for item in transcript])
+        plain_text = " ".join([item["text"] for item in transcript])
 
         formatted_text = "\n".join([
-            f"[{int(item.start//60):02d}:{int(item.start%60):02d}] {item.text}"
+            f"[{int(item['start']//60):02d}:{int(item['start']%60):02d}] {item['text']}"
             for item in transcript
         ])
 
@@ -61,12 +60,12 @@ def get_transcript():
     except Exception as e:
         return jsonify({
             "success": False,
-            "error": f"YouTube Error: {str(e)}"
+            "error": str(e)
         }), 400
 
 
 # -----------------------------
-# Render entry point
+# Render entry
 # -----------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
