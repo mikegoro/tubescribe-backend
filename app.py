@@ -8,14 +8,21 @@ app = Flask(__name__)
 CORS(app)
 
 # -----------------------------
-# Extract YouTube Video ID
+# Extract YouTube Video ID (FIXED)
 # -----------------------------
 def extract_video_id(url):
-    match = re.search(
-        r"(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{11})",
-        url
-    )
-    return match.group(1) if match else None
+    patterns = [
+        r"v=([A-Za-z0-9_-]{11})",
+        r"youtu\.be/([A-Za-z0-9_-]{11})",
+        r"embed/([A-Za-z0-9_-]{11})"
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+
+    return None
 
 
 # -----------------------------
@@ -50,18 +57,20 @@ def get_transcript():
         }), 400
 
     try:
-        # ✅ FIX: correct method for youtube-transcript-api v1.2.4
-        transcript = YouTubeTranscriptApi.fetch(video_id)
+        # -----------------------------
+        # Get transcript (stable method)
+        # -----------------------------
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
 
         # Plain text
-        plain_text = " ".join([item.text for item in transcript])
+        plain_text = " ".join([item["text"] for item in transcript])
 
         # Timestamped text
         formatted_list = []
         for item in transcript:
-            start = getattr(item, "start", 0)
-            mins, secs = divmod(int(start), 60)
-            formatted_list.append(f"[{mins:02d}:{secs:02d}] {item.text}")
+            start = int(item["start"])
+            mins, secs = divmod(start, 60)
+            formatted_list.append(f"[{mins:02d}:{secs:02d}] {item['text']}")
 
         formatted_text = "\n".join(formatted_list)
 
