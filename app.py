@@ -19,7 +19,7 @@ def extract_video_id(url):
 
 
 # -----------------------------
-# Health Check Route (Render friendly)
+# Health Check Route
 # -----------------------------
 @app.route('/')
 def home():
@@ -50,18 +50,18 @@ def get_transcript():
         }), 400
 
     try:
-        # Fetch transcript
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        # ✅ FIX: correct method for youtube-transcript-api v1.2.4
+        transcript = YouTubeTranscriptApi.fetch(video_id)
 
         # Plain text
-        plain_text = " ".join([item["text"] for item in transcript])
+        plain_text = " ".join([item.text for item in transcript])
 
         # Timestamped text
         formatted_list = []
         for item in transcript:
-            start = int(item["start"])
-            mins, secs = divmod(start, 60)
-            formatted_list.append(f"[{mins:02d}:{secs:02d}] {item['text']}")
+            start = getattr(item, "start", 0)
+            mins, secs = divmod(int(start), 60)
+            formatted_list.append(f"[{mins:02d}:{secs:02d}] {item.text}")
 
         formatted_text = "\n".join(formatted_list)
 
