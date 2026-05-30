@@ -1,78 +1,55 @@
 import os
 import re
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify, send_from_directory
 from youtube_transcript_api import YouTubeTranscriptApi
 
 app = Flask(__name__)
-CORS(app)
 
 # -----------------------------
-# Extract YouTube Video ID (FIXED)
+# Extract YouTube ID
 # -----------------------------
 def extract_video_id(url):
-    patterns = [
-        r"v=([A-Za-z0-9_-]{11})",
-        r"youtu\.be/([A-Za-z0-9_-]{11})",
-        r"embed/([A-Za-z0-9_-]{11})"
-    ]
-
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-
-    return None
+    match = re.search(
+        r"(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{11})",
+        url
+    )
+    return match.group(1) if match else None
 
 
 # -----------------------------
-# Health Check Route
+# Optional: serve frontend (can remove if using Vercel)
 # -----------------------------
 @app.route('/')
 def home():
-    return jsonify({
-        "status": "TubeScribe API is running"
-    })
+    return jsonify({"status": "TubeScribe API running"})
 
 
 # -----------------------------
-# Main API Route
+# API
 # -----------------------------
 @app.route('/api/transcript', methods=['GET'])
 def get_transcript():
     url = request.args.get('url')
 
     if not url:
-        return jsonify({
-            "success": False,
-            "error": "URL is required"
-        }), 400
+        return jsonify({"success": False, "error": "URL is required"}), 400
 
     video_id = extract_video_id(url)
 
     if not video_id:
-        return jsonify({
-            "success": False,
-            "error": "Invalid YouTube URL"
-        }), 400
+        return jsonify({"success": False, "error": "Invalid YouTube URL"}), 400
 
     try:
-        # -----------------------------
-        # Get transcript (stable method)
-        # -----------------------------
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        # ✅ YOUR WORKING LOGIC (DO NOT CHANGE)
+        api = YouTubeTranscriptApi()
+        transcript = api.fetch(video_id)
 
-        # Plain text
-        plain_text = " ".join([item["text"] for item in transcript])
+        plain_text = " ".join([item.text for item in transcript])
 
-        # Timestamped text
-        formatted_list = []
-        for item in transcript:
-            start = int(item["start"])
-            mins, secs = divmod(start, 60)
-            formatted_list.append(f"[{mins:02d}:{secs:02d}] {item['text']}")
-
-        formatted_text = "\n".join(formatted_list)
+        formatted_text = "\n".join([
+            f"[{int(item.start//60):02d}:{int(item.start%60):02d}] {item.text}"
+            for item in transcript
+        ])
 
         return jsonify({
             "success": True,
@@ -89,7 +66,7 @@ def get_transcript():
 
 
 # -----------------------------
-# Render Entry Point
+# Render entry point
 # -----------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
